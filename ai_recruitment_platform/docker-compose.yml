@@ -1,0 +1,39 @@
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://talentatlas:${POSTGRES_PASSWORD}@postgres:5432/talentatlas
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
+      AI_MODE: live
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_started}
+      qdrant: {condition: service_started}
+    volumes: ["upload_data:/srv/app/uploads"]
+    restart: unless-stopped
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: talentatlas
+      POSTGRES_USER: talentatlas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talentatlas"]
+      interval: 5s
+      retries: 10
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    volumes: ["qdrant_data:/qdrant/storage"]
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis_data:/data"]
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+  upload_data:
